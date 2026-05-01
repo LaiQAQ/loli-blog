@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniMD - Markdown 编辑器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/dist/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
+            sans: ['Inter', '-apple-system', 'Segoe UI', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    
+    body { font-family: 'Inter', sans-serif; }
+    
+    .editor-wrapper {
+      position: relative;
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    .line-numbers {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50px;
+      padding: 24px 8px 24px 0;
+      text-align: right;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #9ca3af;
+      user-select: none;
+      overflow: hidden;
+      pointer-events: none;
+      background: transparent;
+    }
+    
+    .dark .line-numbers { color: #6b7280; }
+    
+    .editor-textarea {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      resize: none;
+      outline: none;
+      line-height: 1.7;
+      padding-left: 60px !important;
+      tab-size: 2;
+      -moz-tab-size: 2;
+    }
+    
+    .editor-textarea::placeholder {
+      opacity: 0.4;
+    }
+    
+    .preview-content { line-height: 1.7; }
+    .preview-content > *:first-child { margin-top: 0; }
+    .preview-content h1 { font-size: 1.875em; font-weight: 700; margin: 1.5em 0 0.5em; border-bottom: 1px solid; padding-bottom: 0.3em; }
+    .preview-content h2 { font-size: 1.5em; font-weight: 600; margin: 1.5em 0 0.5em; border-bottom: 1px solid; padding-bottom: 0.3em; }
+    .preview-content h3 { font-size: 1.25em; font-weight: 600; margin: 1.25em 0 0.5em; }
+    .preview-content h4 { font-size: 1.125em; font-weight: 600; margin: 1em 0 0.5em; }
+    .preview-content h5 { font-size: 1em; font-weight: 600; margin: 1em 0 0.5em; }
+    .preview-content h6 { font-size: 0.875em; font-weight: 600; margin: 1em 0 0.5em; opacity: 0.8; }
+    .preview-content p { margin: 0.75em 0; }
+    .preview-content code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.875em; }
+    .preview-content pre { background: #1e1e1e; padding: 1em; border-radius: 8px; overflow-x: auto; margin: 1em 0; }
+    .preview-content pre code { background: transparent; padding: 0; color: #d4d4d4; font-size: 0.875em; }
+    .preview-content blockquote { border-left: 4px solid #2196f3; padding-left: 1em; margin: 1em 0; opacity: 0.85; font-style: italic; }
+    .preview-content ul, .preview-content ol { padding-left: 1.5em; margin: 0.75em 0; }
+    .preview-content li { margin: 0.25em 0; }
+    .preview-content a { color: #2196f3; text-decoration: none; }
+    .preview-content a:hover { text-decoration: underline; }
+    .preview-content img { max-width: 100%; border-radius: 8px; margin: 1em 0; }
+    .preview-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    .preview-content th, .preview-content td { border: 1px solid #ddd; padding: 0.5em 1em; text-align: left; }
+    .preview-content th { background: rgba(0,0,0,0.05); font-weight: 600; }
+    .preview-content hr { border: none; border-top: 2px solid rgba(0,0,0,0.1); margin: 2em 0; }
+    .preview-content input[type="checkbox"] { margin-right: 0.5em; accent-color: #2196f3; }
+    .preview-content mark { background: #ffeb3b; color: inherit; padding: 0.1em 0.2em; border-radius: 2px; }
+    
+    /* KaTeX styles */
+    .preview-content .math-inline { font-size: 1.1em; }
+    .preview-content .math-display { margin: 1.5em 0; text-align: center; }
+    
+    .dark .preview-content code { background: #2d2d2d; }
+    .dark .preview-content th { background: rgba(255,255,255,0.1); }
+    .dark .preview-content a { color: #4fc3f7; }
+    .dark .preview-content mark { background: #7c6310; color: #fff; }
+    .dark .preview-content blockquote { border-left-color: #4fc3f7; }
+    .dark .preview-content hr { border-color: rgba(255,255,255,0.1); }
+    
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #666; }
+    .dark ::-webkit-scrollbar-thumb { background: #555; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #777; }
+    
+    .toolbar-btn { transition: all 0.15s ease; }
+    .toolbar-btn:hover { transform: scale(1.1); background: rgba(0,0,0,0.08); }
+    .dark .toolbar-btn:hover { background: rgba(255,255,255,0.1); }
+    .toolbar-btn:active { transform: scale(0.95); }
+    .toolbar-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+    .toolbar-btn:disabled:hover { background: transparent; }
+    
+    .dropdown-menu { 
+      opacity: 0; 
+      visibility: hidden; 
+      transform: translateY(-8px);
+      transition: all 0.2s ease;
+    }
+    .dropdown-menu.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .export-dropdown {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all 0.15s ease;
+    }
+    .export-dropdown.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    /* Help Modal */
+    .modal-overlay {
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .modal-content {
+      transform: scale(0.95) translateY(10px);
+      transition: all 0.2s ease;
+    }
+    .modal-overlay.show .modal-content {
+      transform: scale(1) translateY(0);
+    }
+    .shortcut-key {
+      background: #e5e7eb;
+      padding: 0.15em 0.5em;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8em;
+      border: 1px solid #d1d5db;
+    }
+    .dark .shortcut-key {
+      background: #374151;
+      border-color: #4b5563;
+    }
+    
+    /* TOC styles */
+    .toc-link {
+      color: #666;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .toc-link:hover { color: #2196f3; }
+    .toc-link.active { color: #2196f3; font-weight: 500; }
+    .dark .toc-link { color: #9ca3af; }
+    .dark .toc-link:hover { color: #4fc3f7; }
+    .dark .toc-link.active { color: #4fc3f7; }
+    
+    /* Autocomplete dropdown */
+    .autocomplete-dropdown {
+      position: absolute;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .autocomplete-dropdown.show { display: block; }
+    .autocomplete-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+    .autocomplete-item:hover, .autocomplete-item.selected {
+      background: #f3f4f6;
+    }
+    .dark .autocomplete-dropdown {
+      background: #2d2d2d;
+      border-color: #4b5563;
+    }
+    .dark .autocomplete-item:hover, .dark .autocomplete-item.selected {
+      background: #374151;
+    }
+    
+    /* Tab styles */
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 13px;
+      color: #666;
+      transition: all 0.15s;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tab-item:hover {
+      background: rgba(0,0,0,0.05);
+      color: #333;
+    }
+    .tab-item.active {
+      color: #2196f3;
+      border-bottom-color: #2196f3;
+      background: rgba(33,150,243,0.08);
+    }
+    .dark .tab-item { color: #9ca3af; }
+    .dark .tab-item:hover {
+      background: rgba(255,255,255,0.05);
+      color: #d4d4d4;
+    }
+    .dark .tab-item.active {
+      color: #4fc3f7;
+      border-bottom-color: #4fc3f7;
+      background: rgba(79,195,247,0.08);
+    }
+    .tab-close, .tab-rename {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.5;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .tab-close:hover, .tab-rename:hover {
+      opacity: 1;
+      background: rgba(0,0,0,0.1);
+    }
+    .dark .tab-close:hover, .dark .tab-rename:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .tab-rename {
+      margin-left: 2px;
+    }
+    .new-tab-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #666;
+      transition: all 0.15s;
+      margin-left: 4px;
+    }
+    .new-tab-btn:hover {
+      background: rgba(0,0,0,0.08);
+      color: #333;
+    }
+    .dark .new-tab-btn { color: #9ca3af; }
+    .dark .new-tab-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: #d4d4d4;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .desktop-toolbar { display: none; }
+      .mobile-toolbar { display: flex !important; }
+      .editor-textarea { font-size: 14px; }
+    }
+    
+    /* Print styles */
+    @media print {
+      header, .no-print { display: none !important; }
+      main { margin: 0; padding: 0; }
+      .preview-content { padding: 0; }
+    }
+  </style>
+</head>
+<body class="bg-white dark:bg-[#1e1e1e] text-gray-800 dark:text-gray-200 h-screen overflow-hidden transition-colors duration-300">
+  
+  <!-- Desktop Toolbar -->
+  <header class="desktop-toolbar fixed top-0 left-0 right-0 h-12 bg-gray-100/95 dark:bg-[#2d2d2d]/95 border-b border-gray-200 dark:border-gray-700 flex items-center px-3 gap-1 z-50 transition-colors duration-300 backdrop-blur-sm">
+    
+    <!-- 左侧：撤销/重做 -->
+    <button id="undoBtn" class="toolbar-btn p-2 rounded" title="撤销 (Ctrl+Z)" disabled>
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+      </svg>
+    </button>
+    <button id="redoBtn" class="toolbar-btn p-2 rounded" title="重做 (Ctrl+Y)" disabled>
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>
+      </svg>
+    </button>
+    
+    <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+    
+    <!-- 左侧：标题 -->
+    <div class="relative">
+      <button id="headingBtn" class="toolbar-btn p-2 rounded flex items-center gap-1" title="标题 (Ctrl+1/2/3/4)">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 12h12"/><path d="M6 4v16"/><path d="M18 4v16"/>
+        </svg>
+        <svg class="w-3 h-3 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div id="headingDropdown" class="dropdown-menu absolute top-full left-0 mt-1 bg-white dark:bg-[#2d2d2d] border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <button data-level="1" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-semibold">标题 1 <span class="text-gray-400 text-xs ml-2">Ctrl+1</span></button>
+        <button data-level="2" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-semibold">标题 2 <span class="text-gray-400 text-xs ml-2">Ctrl+2</span></button>
+        <button data-level="3" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-semibold">标题 3 <span class="text-gray-400 text-xs ml-2">Ctrl+3</span></button>
+        <button data-level="4" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-semibold">标题 4 <span class="text-gray-400 text-xs ml-2">Ctrl+4</span></button>
+      </div>
+    </div>
+    
+    <!-- 左侧：文本格式 -->
+    <button id="boldBtn" class="toolbar-btn p-2 rounded" title="加粗 (Ctrl+B)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+      </svg>
+    </button>
+    <button id="italicBtn" class="toolbar-btn p-2 rounded" title="斜体 (Ctrl+I)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>
+      </svg>
+    </button>
+    <button id="strikethroughBtn" class="toolbar-btn p-2 rounded" title="删除线 (Ctrl+Shift+S)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" y1="12" x2="20" y2="12"/>
+      </svg>
+    </button>
+    <button id="underlineBtn" class="toolbar-btn p-2 rounded" title="下划线 (Ctrl+U)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="20" x2="20" y2="20"/>
+      </svg>
+    </button>
+    <button id="highlightBtn" class="toolbar-btn p-2 rounded" title="高亮 (Ctrl+Shift+H)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>
+      </svg>
+    </button>
+    
+    <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+    
+    <!-- 左侧：列表和引用 -->
+    <button id="quoteBtn" class="toolbar-btn p-2 rounded" title="引用 (Ctrl+Shift+Q)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/>
+        <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"/>
+      </svg>
+    </button>
+    <button id="unorderedListBtn" class="toolbar-btn p-2 rounded" title="无序列表">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/>
+        <circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/>
+      </svg>
+    </button>
+    <button id="orderedListBtn" class="toolbar-btn p-2 rounded" title="有序列表">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
+        <path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
+      </svg>
+    </button>
+    <button id="taskListBtn" class="toolbar-btn p-2 rounded" title="任务清单">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><line x1="13" y1="6" x2="21" y2="6"/><line x1="13" y1="12" x2="21" y2="12"/><line x1="13" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    
+    <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+    
+    <!-- 左侧：代码和链接 -->
+    <button id="codeBtn" class="toolbar-btn p-2 rounded" title="行内代码 (Ctrl+`)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      </svg>
+    </button>
+    <button id="codeBlockBtn" class="toolbar-btn p-2 rounded" title="代码块 (Ctrl+Shift+K)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="m10 10-2 2 2 2"/><path d="m14 10 2 2-2 2"/>
+      </svg>
+    </button>
+    <button id="linkBtn" class="toolbar-btn p-2 rounded" title="链接 (Ctrl+K)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    </button>
+    <button id="imageBtn" class="toolbar-btn p-2 rounded" title="图片 (Ctrl+Shift+I)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </button>
+    <button id="tableBtn" class="toolbar-btn p-2 rounded" title="表格 (Ctrl+Shift+T)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/>
+      </svg>
+    </button>
+    
+    <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+    
+    <!-- 左侧：插入 -->
+    <button id="hrBtn" class="toolbar-btn p-2 rounded" title="水平线">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"/>
+      </svg>
+    </button>
+    <button id="mathBtn" class="toolbar-btn p-2 rounded" title="数学公式 (Ctrl+M)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/>
+        <path d="M4 14h6v6H4z"/><path d="M17 14v3h3"/><path d="M14 17h3"/>
+      </svg>
+    </button>
+    <button id="tocBtn" class="toolbar-btn p-2 rounded" title="插入目录">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-8"/>
+        <path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h4"/>
+      </svg>
+    </button>
+    
+    <div class="flex-1"></div>
+    
+    <!-- 保存提示 -->
+    <span id="saveIndicator" class="text-xs text-green-600 dark:text-green-400 opacity-0 mr-3 transition-opacity">已保存</span>
+    
+    <!-- 右侧：视图设置 -->
+    <div class="relative">
+      <button id="settingsBtn" class="toolbar-btn p-2 rounded" title="视图设置">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+          <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+          <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+        </svg>
+      </button>
+      <div id="settingsDropdown" class="export-dropdown absolute top-full right-0 mt-1 bg-white dark:bg-[#2d2d2d] border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-2 min-w-[180px] z-50">
+        <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 mb-1">视图设置</div>
+        <button id="tocToggleMenu" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/></svg>
+            目录面板
+          </span>
+          <span id="tocToggleStatus" class="text-xs text-green-500">关</span>
+        </button>
+        <button id="syncScrollToggle" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+            同步滚动
+          </span>
+          <span id="syncScrollStatus" class="text-xs text-green-500">开</span>
+        </button>
+        <div class="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+          <button id="fullscreenBtn" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+            全屏编辑
+          </button>
+          <button id="previewOnlyBtn" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            仅预览模式
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 导出下拉 -->
+    <div class="relative">
+      <button id="exportBtn" class="toolbar-btn p-2 rounded" title="导出">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
+      <div id="exportDropdown" class="export-dropdown absolute top-full right-0 mt-1 bg-white dark:bg-[#2d2d2d] border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <button data-format="md" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          导出 Markdown
+        </button>
+        <button data-format="html" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          导出 HTML
+        </button>
+      </div>
+    </div>
+    
+    <!-- 帮助按钮 -->
+    <button id="helpBtn" class="toolbar-btn p-2 rounded" title="快捷键帮助 (Ctrl+/)">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </button>
+    
+    <!-- 主题切换 -->
+    <button id="themeToggle" class="toolbar-btn p-2 rounded" title="切换主题 (Ctrl+D)">
+      <svg id="sunIcon" class="w-5 h-5 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg id="moonIcon" class="w-5 h-5 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </header>
+  
+  <!-- Mobile Toolbar (collapsible) -->
+  <header class="mobile-toolbar hidden fixed top-0 left-0 right-0 bg-gray-100/95 dark:bg-[#2d2d2d]/95 border-b border-gray-200 dark:border-gray-700 z-50 transition-colors duration-300 backdrop-blur-sm">
+    <div class="flex items-center justify-between px-3 h-12">
+      <div class="flex items-center gap-2">
+        <button id="mobileMenuBtn" class="toolbar-btn p-2 rounded">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="text-sm font-medium">MiniMD</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button id="mobileThemeToggle" class="toolbar-btn p-2 rounded">
+          <svg id="mobileSunIcon" class="w-5 h-5 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+          <svg id="mobileMoonIcon" class="w-5 h-5 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="mobileMenuDropdown" class="hidden bg-white dark:bg-[#2d2d2d] border-t border-gray-200 dark:border-gray-700 p-2 grid grid-cols-4 gap-1">
+      <button data-action="bold" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+        <span class="mt-1">加粗</span>
+      </button>
+      <button data-action="italic" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+        <span class="mt-1">斜体</span>
+      </button>
+      <button data-action="link" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span class="mt-1">链接</span>
+      </button>
+      <button data-action="code" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span class="mt-1">代码</span>
+      </button>
+      <button data-action="heading" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 12h12"/></svg>
+        <span class="mt-1">标题</span>
+      </button>
+      <button data-action="quote" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/></svg>
+        <span class="mt-1">引用</span>
+      </button>
+      <button data-action="list" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+        <span class="mt-1">列表</span>
+      </button>
+      <button data-action="math" class="toolbar-btn p-2 rounded flex flex-col items-center text-xs">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M17 14v3h3"/><path d="M14 17h3"/></svg>
+        <span class="mt-1">公式</span>
+      </button>
+    </div>
+  </header>
+  
+  <!-- Tab Bar -->
+  <div id="tabBar" class="fixed top-12 left-0 right-0 h-10 bg-gray-50/95 dark:bg-[#252526]/95 border-b border-gray-200 dark:border-gray-700 flex items-center px-2 gap-1 z-40 overflow-x-auto no-scrollbar">
+    <div id="tabsContainer" class="flex items-center gap-1"></div>
+    <button id="newTabBtn" class="new-tab-btn" title="新建文档 (Ctrl+N)">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+  
+  <main class="flex h-full pt-[88px]">
+    <!-- Editor Panel -->
+    <div class="w-full lg:w-1/2 h-full flex flex-col border-r border-gray-200 dark:border-gray-700 relative">
+      <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-[#252526]/80 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>编辑</span>
+        </div>
+        <div id="wordCount" class="text-gray-400">0 字</div>
+      </div>
+      <div class="editor-wrapper">
+        <div id="lineNumbers" class="line-numbers">1</div>
+        <textarea 
+          id="editor" 
+          class="editor-textarea flex-1 w-full p-6 bg-white dark:bg-[#1e1e1e] text-gray-800 dark:text-gray-200 text-[15px]"
+          placeholder="开始输入 Markdown..."
+          spellcheck="false"
+        ></textarea>
+        <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+      </div>
+    </div>
+    
+    <!-- Preview/TOC Panel -->
+    <div class="hidden lg:flex w-1/2 h-full">
+      <!-- TOC Panel -->
+      <div id="tocPanel" class="hidden w-64 h-full flex flex-col border-r border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#252526]/50">
+        <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span>目录</span>
+          </div>
+        </div>
+        <div id="tocContent" class="flex-1 overflow-y-auto p-4 space-y-1 text-sm">
+          <p class="text-gray-400 text-xs">暂无内容</p>
+        </div>
+      </div>
+      
+      <!-- Preview Panel -->
+      <div class="flex-1 h-full flex flex-col">
+        <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-[#252526]/80 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>预览</span>
+        </div>
+        <div id="preview" class="preview-content flex-1 p-6 overflow-y-auto bg-white dark:bg-[#1e1e1e] text-gray-800 dark:text-gray-200 text-base">
+          <p class="opacity-40">预览区域</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mobile Preview (toggle) -->
+    <div id="mobilePreview" class="lg:hidden w-full h-full flex-col hidden">
+      <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-[#252526]/80 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>预览</span>
+        </div>
+        <button id="backToEditor" class="text-xs text-blue-500">返回编辑</button>
+      </div>
+      <div id="mobilePreviewContent" class="preview-content flex-1 p-6 overflow-y-auto bg-white dark:bg-[#1e1e1e] text-gray-800 dark:text-gray-200 text-base"></div>
+    </div>
+  </main>
+  
+  <!-- Bottom Status Bar -->
+  <footer class="fixed bottom-0 left-0 right-0 h-6 bg-gray-100/95 dark:bg-[#2d2d2d]/95 border-t border-gray-200 dark:border-gray-700 flex items-center px-4 text-xs text-gray-500 dark:text-gray-400 z-40">
+    <span id="statusLine">行 1, 列 1</span>
+    <span class="mx-3">|</span>
+    <span id="statusWords">0 字</span>
+    <span class="mx-3">|</span>
+    <span id="statusChars">0 字符</span>
+    <div class="flex-1"></div>
+    <button id="statusSync" class="text-green-500 hover:opacity-80 cursor-pointer">同步滚动: 开</button>
+  </footer>
+  
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[100]" onclick="if(event.target===this)this.classList.remove('show')">
+    <div class="modal-content bg-white dark:bg-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden m-4">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold">键盘快捷键</h2>
+        <button id="closeHelpBtn" class="toolbar-btn p-1.5 rounded">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="p-6 overflow-y-auto max-h-[calc(80vh-70px)]">
+        <div class="grid md:grid-cols-2 gap-8">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">编辑操作</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center py-1.5">
+                <span>保存文档</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">S</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>撤销</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Z</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>重做</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Y</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>新建文档</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">N</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>选中全选</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">A</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>链接</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">K</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>数学公式</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">M</span></span>
+              </div>
+            </div>
+            
+            <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3 mt-6">文本格式化</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center py-1.5">
+                <span>加粗</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">B</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>斜体</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">I</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>删除线</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Shift</span> + <span class="shortcut-key">S</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>行内代码</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">`</span></span>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">插入操作</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center py-1.5">
+                <span>标题 1</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">1</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>标题 2</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">2</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>标题 3</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">3</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>标题 4</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">4</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>下划线</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">U</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>高亮</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Shift</span> + <span class="shortcut-key">H</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>引用</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Shift</span> + <span class="shortcut-key">Q</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>代码块</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Shift</span> + <span class="shortcut-key">K</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>图片</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Shift</span> + <span class="shortcut-key">I</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>表格</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Shift</span> + <span class="shortcut-key">T</span></span>
+              </div>
+            </div>
+            
+            <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3 mt-6">其他</h3>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center py-1.5">
+                <span>帮助文档</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">/</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>切换主题</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">D</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>插入制表符</span>
+                <span><span class="shortcut-key">Tab</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5">
+                <span>预览/编辑切换</span>
+                <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">P</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">Markdown 语法参考</h3>
+          <div class="grid md:grid-cols-3 gap-4 text-sm">
+            <div class="space-y-1.5">
+              <p><code class="shortcut-key">**粗体**</code> <strong>粗体</strong></p>
+              <p><code class="shortcut-key">*斜体*</code> <em>斜体</em></p>
+              <p><code class="shortcut-key">~~删除~~</code> <del>删除</del></p>
+            </div>
+            <div class="space-y-1.5">
+              <p><code class="shortcut-key"># 标题</code> 标题</p>
+              <p><code class="shortcut-key">> 引用</code> 引用</p>
+              <p><code class="shortcut-key">- 列表</code> 列表</p>
+            </div>
+            <div class="space-y-1.5">
+              <p><code class="shortcut-key">`代码`</code> 代码</p>
+              <p><code class="shortcut-key">[链接](url)</code> 链接</p>
+              <p><code class="shortcut-key">![图片](url)</code> 图片</p>
+            </div>
+          </div>
+          <div class="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <h4 class="text-sm font-medium mb-2">数学公式</h4>
+            <p class="text-xs opacity-75"><code>$E=mc^2$</code> 行内公式</p>
+            <p class="text-xs opacity-75"><code>$$\int_0^\infty e^{-x^2} dx$$</code> 块级公式</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const state = {
+      tabs: [],
+      activeTabId: null,
+      content: '',
+      history: [],
+      historyIndex: -1,
+      maxHistory: 100,
+      isDark: false,
+      saveTimeout: null,
+      renderTimeout: null,
+      syncScroll: true,
+      showToc: false,
+      autocompleteVisible: false,
+      activeHeadingId: null,
+    };
+    
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+    const lineNumbers = document.getElementById('lineNumbers');
+    const tocContent = document.getElementById('tocContent');
+    const tocPanel = document.getElementById('tocPanel');
+    const tabsContainer = document.getElementById('tabsContainer');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    const themeToggle = document.getElementById('themeToggle');
+    const saveIndicator = document.getElementById('saveIndicator');
+    const headingBtn = document.getElementById('headingBtn');
+    const headingDropdown = document.getElementById('headingDropdown');
+    const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+    
+    // Markdown autocomplete snippets
+    const snippets = [
+      { trigger: '**', label: '**粗体**', description: '加粗文本' },
+      { trigger: '*', label: '*斜体*', description: '斜体文本' },
+      { trigger: '~~', label: '~~删除~~', description: '删除线' },
+      { trigger: '`', label: '`代码`', description: '行内代码' },
+      { trigger: '```', label: '```\n代码块\n```', description: '代码块' },
+      { trigger: '#', label: '# 标题', description: '一级标题' },
+      { trigger: '##', label: '## 标题', description: '二级标题' },
+      { trigger: '###', label: '### 标题', description: '三级标题' },
+      { trigger: '>', label: '> 引用', description: '引用块' },
+      { trigger: '-', label: '- 列表项', description: '无序列表' },
+      { trigger: '1.', label: '1. 列表项', description: '有序列表' },
+      { trigger: '- [', label: '- [ ] 待办', description: '任务清单' },
+      { trigger: '|', label: '| 列1 | 列2 |\n|-----|-----|\n| 内容 | 内容 |', description: '表格' },
+      { trigger: '[]()', label: '[链接文本](url)', description: '链接' },
+      { trigger: '![]()', label: '![替代文本](图片url)', description: '图片' },
+      { trigger: '---', label: '---', description: '水平线' },
+      { trigger: '$$', label: '$$公式$$', description: '块级公式' },
+    ];
+    
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+          try {
+            return hljs.highlight(code, { language: lang }).value;
+          } catch (e) {}
+        }
+        return hljs.highlightAuto(code).value;
+      }
+    });
+    
+    const renderer = new marked.Renderer();
+    renderer.listitem = function(text) {
+      if (typeof text === 'string' && text.includes('type="checkbox"')) {
+        return `<li style="list-style: none; margin-left: -1.5em;">${text}</li>\n`;
+      }
+      return `<li>${text}</li>\n`;
+    };
+    
+    renderer.heading = function(text, level) {
+      const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
+      return `<h${level} id="${escapedText}">${text}</h${level}>\n`;
+    };
+    
+    marked.use({ renderer });
+
+    // 高亮语法扩展 (==text==)
+    marked.use({
+      extensions: [{
+        name: 'highlight',
+        level: 'inline',
+        start(src) {
+          return src.indexOf('==');
+        },
+        tokenizer(src) {
+          const rule = /^==([^=]+)==/;
+          const match = rule.exec(src);
+          if (match) {
+            return {
+              type: 'highlight',
+              raw: match[0],
+              text: match[1]
+            };
+          }
+        },
+        renderer(token) {
+          return `<mark>${token.text}</mark>`;
+        }
+      }]
+    });
+    
+    // KaTeX extension for math
+    const originalParse = marked.parse;
+    marked.parse = function(text) {
+      if (!text) return '';
+      
+      text = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match, math) {
+        try {
+          return `<div class="math-display">${katex.renderToString(math.trim(), { displayMode: true, throwOnError: false })}</div>`;
+        } catch (e) {
+          return `<div class="math-display math-error">${match}</div>`;
+        }
+      });
+      
+      text = text.replace(/\$([^\$\n]+?)\$/g, function(match, math) {
+        try {
+          return `<span class="math-inline">${katex.renderToString(math.trim(), { displayMode: false, throwOnError: false })}</span>`;
+        } catch (e) {
+          return `<span class="math-inline math-error">${match}</span>`;
+        }
+      });
+      
+      return originalParse.call(marked, text);
+    };
+    
+    // Tab Management
+    function generateId() {
+      return 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    
+    // 获取下一个新文档名称
+    function getNextDocName() {
+      let num = 1;
+      const existingNames = state.tabs.map(t => t.title);
+      while (existingNames.includes('新文档' + num)) {
+        num++;
+      }
+      return '新文档' + num;
+    }
+    
+    function createTab(title = null, content = null) {
+      const defaultContent = content !== null ? content : getDefaultContent();
+      const tabTitle = title !== null ? title : getNextDocName();
+      const tab = {
+        id: generateId(),
+        title: tabTitle,
+        content: defaultContent,
+        history: [],
+        historyIndex: -1,
+        updatedAt: Date.now()
+      };
+      state.tabs.push(tab);
+      renderTabs();
+      switchTab(tab.id);
+      saveTabsToStorage();
+      return tab;
+    }
+    
+    function closeTab(tabId) {
+      const tabIndex = state.tabs.findIndex(t => t.id === tabId);
+      if (tabIndex === -1) return;
+      
+      state.tabs.splice(tabIndex, 1);
+      
+      if (state.tabs.length === 0) {
+        createTab();
+      } else if (state.activeTabId === tabId) {
+        const newIndex = Math.min(tabIndex, state.tabs.length - 1);
+        switchTab(state.tabs[newIndex].id);
+      }
+      
+      renderTabs();
+      saveTabsToStorage();
+    }
+    
+    function switchTab(tabId) {
+      const tab = state.tabs.find(t => t.id === tabId);
+      if (!tab) return;
+      
+      // Save current tab content
+      const currentTab = state.tabs.find(t => t.id === state.activeTabId);
+      if (currentTab) {
+        currentTab.content = editor.value;
+        currentTab.history = [...state.history];
+        currentTab.historyIndex = state.historyIndex;
+        currentTab.updatedAt = Date.now();
+      }
+      
+      // Switch to new tab
+      state.activeTabId = tabId;
+      editor.value = tab.content;
+      state.history = [...tab.history];
+      state.historyIndex = tab.historyIndex;
+      
+      renderTabs();
+      updateHistoryButtons();
+      render();
+      updateLineNumbers();
+      updateWordCount();
+      updateCursorPosition();
+      saveTabsToStorage();
+    }
+    
+    function renderTabs() {
+      tabsContainer.innerHTML = '';
+      state.tabs.forEach(tab => {
+        const tabEl = document.createElement('button');
+        tabEl.className = `tab-item ${tab.id === state.activeTabId ? 'active' : ''}`;
+        tabEl.innerHTML = `
+          <span class="tab-title truncate">${escapeHtml(tab.title)}</span>
+          <span class="tab-rename" data-tab-id="${tab.id}" title="重命名">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+          </span>
+          <span class="tab-close" data-tab-id="${tab.id}">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </span>
+        `;
+        
+        tabEl.addEventListener('click', (e) => {
+          if (!e.target.closest('.tab-close') && !e.target.closest('.tab-rename')) {
+            switchTab(tab.id);
+          }
+        });
+        
+        const closeBtn = tabEl.querySelector('.tab-close');
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeTab(tab.id);
+        });
+        
+        const renameBtn = tabEl.querySelector('.tab-rename');
+        renameBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startRename(tab.id, tabEl);
+        });
+        
+        tabsContainer.appendChild(tabEl);
+      });
+    }
+    
+    function startRename(tabId, tabEl) {
+      const tab = state.tabs.find(t => t.id === tabId);
+      if (!tab) return;
+      
+      const titleSpan = tabEl.querySelector('.tab-title');
+      const renameBtn = tabEl.querySelector('.tab-rename');
+      const originalTitle = tab.title;
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = originalTitle;
+      input.className = 'tab-rename-input';
+      input.style.cssText = 'width: 80px; padding: 2px 4px; font-size: 13px; border: 1px solid #2196f3; border-radius: 4px; outline: none;';
+      
+      titleSpan.replaceWith(input);
+      renameBtn.style.display = 'none';
+      input.focus();
+      input.select();
+      
+      const finishRename = () => {
+        const newTitle = input.value.trim() || originalTitle;
+        tab.title = newTitle;
+        saveTabsToStorage();
+        renderTabs();
+      };
+      
+      input.addEventListener('blur', finishRename);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.blur();
+        } else if (e.key === 'Escape') {
+          input.value = originalTitle;
+          input.blur();
+        }
+      });
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function saveTabsToStorage() {
+      localStorage.setItem('minimd-tabs', JSON.stringify(state.tabs));
+      localStorage.setItem('minimd-activeTab', state.activeTabId);
+    }
+    
+    function loadTabsFromStorage() {
+      const tabs = localStorage.getItem('minimd-tabs');
+      const activeTab = localStorage.getItem('minimd-activeTab');
+      
+      if (tabs) {
+        try {
+          state.tabs = JSON.parse(tabs);
+        } catch (e) {
+          state.tabs = [];
+        }
+      }
+      
+      if (state.tabs.length === 0) {
+        createTab(getNextDocName(), getDefaultContent());
+      } else {
+        if (activeTab && state.tabs.find(t => t.id === activeTab)) {
+          state.activeTabId = activeTab;
+        } else {
+          state.activeTabId = state.tabs[0].id;
+        }
+        const activeTabData = state.tabs.find(t => t.id === state.activeTabId);
+        if (activeTabData) {
+          editor.value = activeTabData.content;
+          state.history = [...activeTabData.history];
+          state.historyIndex = activeTabData.historyIndex;
+        }
+      }
+      
+      renderTabs();
+      updateHistoryButtons();
+    }
+    
+    function pushHistory() {
+      const content = editor.value;
+      if (state.history[state.historyIndex] === content) return;
+      
+      state.history = state.history.slice(0, state.historyIndex + 1);
+      state.history.push(content);
+      if (state.history.length > state.maxHistory) {
+        state.history.shift();
+      }
+      state.historyIndex = state.history.length - 1;
+      updateHistoryButtons();
+    }
+    
+    function undo() {
+      if (state.historyIndex > 0) {
+        state.historyIndex--;
+        editor.value = state.history[state.historyIndex];
+        render();
+        updateHistoryButtons();
+        updateLineNumbers();
+        updateWordCount();
+        updateCurrentTabContent();
+      }
+    }
+    
+    function redo() {
+      if (state.historyIndex < state.history.length - 1) {
+        state.historyIndex++;
+        editor.value = state.history[state.historyIndex];
+        render();
+        updateHistoryButtons();
+        updateLineNumbers();
+        updateWordCount();
+        updateCurrentTabContent();
+      }
+    }
+    
+    function updateCurrentTabContent() {
+      const tab = state.tabs.find(t => t.id === state.activeTabId);
+      if (tab) {
+        tab.content = editor.value;
+        tab.history = [...state.history];
+        tab.historyIndex = state.historyIndex;
+        tab.updatedAt = Date.now();
+        saveTabsToStorage();
+      }
+    }
+    
+    function updateHistoryButtons() {
+      undoBtn.disabled = state.historyIndex <= 0;
+      redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+    }
+    
+    function updateLineNumbers() {
+      const lines = editor.value.split('\n').length;
+      const numbers = [];
+      for (let i = 1; i <= lines; i++) {
+        numbers.push(i);
+      }
+      lineNumbers.textContent = numbers.join('\n');
+      lineNumbers.scrollTop = editor.scrollTop;
+    }
+    
+    function updateWordCount() {
+      const text = editor.value;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const chars = text.length;
+      
+      document.getElementById('wordCount').textContent = `${words} 字`;
+      document.getElementById('statusWords').textContent = `${words} 字`;
+      document.getElementById('statusChars').textContent = `${chars} 字符`;
+    }
+    
+    function updateCursorPosition() {
+      const text = editor.value;
+      const pos = editor.selectionStart;
+      const lines = text.substr(0, pos).split('\n');
+      const line = lines.length;
+      const col = lines[lines.length - 1].length + 1;
+      
+      document.getElementById('statusLine').textContent = `行 ${line}, 列 ${col}`;
+    }
+    
+    function generateTOC() {
+      const headings = preview.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      
+      if (headings.length === 0) {
+        tocContent.innerHTML = '<p class="text-gray-400 text-xs">暂无内容</p>';
+        return;
+      }
+      
+      let html = '<nav class="space-y-1">';
+      headings.forEach(h => {
+        const level = parseInt(h.tagName[1]);
+        const indent = (level - 1) * 12;
+        const id = h.id || h.textContent.toLowerCase().replace(/[^\w]+/g, '-');
+        h.id = id;
+        html += `<a href="#${id}" class="toc-link block py-1 text-xs" style="padding-left: ${indent}px" data-id="${id}">${h.textContent}</a>`;
+      });
+      html += '</nav>';
+      tocContent.innerHTML = html;
+      
+      tocContent.querySelectorAll('.toc-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const id = link.dataset.id;
+          const target = document.getElementById(id);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    }
+    
+    function updateActiveTOCHeading() {
+      if (!state.syncScroll) return;
+      
+      const headings = preview.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      const scrollTop = preview.scrollTop;
+      
+      let activeId = null;
+      headings.forEach(h => {
+        if (h.offsetTop <= scrollTop + 100) {
+          activeId = h.id;
+        }
+      });
+      
+      if (activeId !== state.activeHeadingId) {
+        state.activeHeadingId = activeId;
+        tocContent.querySelectorAll('.toc-link').forEach(link => {
+          link.classList.toggle('active', link.dataset.id === activeId);
+        });
+      }
+    }
+    
+    function toggleToc() {
+      state.showToc = !state.showToc;
+      tocPanel.classList.toggle('hidden', !state.showToc);
+      localStorage.setItem('minimd-showtoc', state.showToc ? 'true' : 'false');
+    }
+    
+    function saveToStorage() {
+      const tab = state.tabs.find(t => t.id === state.activeTabId);
+      if (tab) {
+        tab.content = editor.value;
+        tab.history = [...state.history];
+        tab.historyIndex = state.historyIndex;
+        tab.updatedAt = Date.now();
+        
+        // Update tab title from first heading
+        const firstLine = editor.value.split('\n')[0].trim();
+        if (firstLine.startsWith('#')) {
+          tab.title = firstLine.replace(/^#+\s*/, '').substring(0, 30) || '新文档';
+        }
+        
+        renderTabs();
+      }
+      
+      localStorage.setItem('minimd-theme', state.isDark ? 'dark' : 'light');
+      localStorage.setItem('minimd-syncscroll', state.syncScroll ? 'true' : 'false');
+      saveTabsToStorage();
+      showSaveIndicator();
+    }
+    
+    function loadFromStorage() {
+      loadTabsFromStorage();
+      
+      const theme = localStorage.getItem('minimd-theme');
+      const syncScroll = localStorage.getItem('minimd-syncscroll');
+      const showToc = localStorage.getItem('minimd-showtoc');
+      
+      if (theme === 'dark') {
+        state.isDark = true;
+        document.documentElement.classList.add('dark');
+      }
+      
+      state.syncScroll = syncScroll !== 'false';
+      updateSyncStatus();
+      
+      state.showToc = showToc === 'true';
+      tocPanel.classList.toggle('hidden', !state.showToc);
+      
+      if (state.history.length === 0) {
+        pushHistory();
+      }
+      
+      updateLineNumbers();
+      updateWordCount();
+      updateCursorPosition();
+      updateSettingsStatus();
+      render();
+    }
+    
+    function getDefaultContent() {
+      return `# 欢迎使用 MiniMD
+
+这是一个 **所见即所得** 的 Markdown 编辑器。
+
+## 功能特点
+
+- 实时预览编辑内容
+- 支持所有基础 Markdown 语法
+- 代码高亮显示
+- 亮色/暗色主题切换
+- 本地自动保存
+- 撤销/重做功能
+- 自动生成目录
+- 字数统计
+- 数学公式支持 (KaTeX)
+- 多文件标签页管理
+
+## 数学公式示例
+
+行内公式: $E = mc^2$
+
+块级公式:
+
+$$
+\\int_0^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
+$$
+
+## 代码示例
+
+\`\`\`javascript
+function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet('World'));
+\`\`\`
+
+\`\`\`python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+\`\`\`
+
+## 表格
+
+| 功能 | 状态 |
+|------|------|
+| 标题 | ✅ |
+| 加粗 | ✅ |
+| 斜体 | ✅ |
+| 代码块 | ✅ |
+
+## 引用块
+
+> 这是一段引用文字
+> 可以包含多行内容
+
+开始编辑你的内容吧！`;
+    }
+    
+    function showSaveIndicator() {
+      saveIndicator.classList.remove('opacity-0');
+      setTimeout(() => {
+        saveIndicator.classList.add('opacity-0');
+      }, 1500);
+    }
+    
+    function render() {
+      clearTimeout(state.renderTimeout);
+      state.renderTimeout = setTimeout(() => {
+        const content = editor.value;
+        preview.innerHTML = marked.parse(content);
+        generateTOC();
+        
+        const mobilePreviewContent = document.getElementById('mobilePreviewContent');
+        if (mobilePreviewContent) {
+          mobilePreviewContent.innerHTML = preview.innerHTML;
+        }
+      }, 50);
+    }
+    
+    function toggleTheme() {
+      state.isDark = !state.isDark;
+      document.documentElement.classList.toggle('dark', state.isDark);
+      localStorage.setItem('minimd-theme', state.isDark ? 'dark' : 'light');
+    }
+    
+    function updateSyncStatus() {
+      document.getElementById('statusSync').textContent = `同步滚动: ${state.syncScroll ? '开' : '关'}`;
+      document.getElementById('statusSync').className = state.syncScroll ? 'text-green-500 hover:opacity-80 cursor-pointer' : 'text-gray-400 hover:opacity-80 cursor-pointer';
+    }
+    
+    function toggleSyncScroll() {
+      state.syncScroll = !state.syncScroll;
+      updateSyncStatus();
+      localStorage.setItem('minimd-syncscroll', state.syncScroll ? 'true' : 'false');
+    }
+    
+    function wrapSelection(before, after = before, placeholder = '') {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      const selected = text.substring(start, end) || placeholder;
+      
+      const newText = text.substring(0, start) + before + selected + after + text.substring(end);
+      editor.value = newText;
+      
+      if (selected === placeholder) {
+        editor.setSelectionRange(start + before.length, start + before.length + placeholder.length);
+      } else {
+        editor.setSelectionRange(start, end + before.length + after.length);
+      }
+      
+      editor.focus();
+      handleInput();
+    }
+    
+    function insertAtLineStart(prefix) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      
+      let lineStart = start;
+      while (lineStart > 0 && text[lineStart - 1] !== '\n') {
+        lineStart--;
+      }
+      
+      const newText = text.substring(0, lineStart) + prefix + text.substring(lineStart);
+      editor.value = newText;
+      editor.setSelectionRange(start + prefix.length, end + prefix.length);
+      editor.focus();
+      handleInput();
+    }
+    
+    function insertHeading(level) {
+      insertAtLineStart('#'.repeat(level) + ' ');
+      hideHeadingDropdown();
+    }
+    
+    function insertTable() {
+      const start = editor.selectionStart;
+      const text = editor.value;
+
+      const table = `
+
+| 列1 | 列2 | 列3 |
+|-----|-----|-----|
+| 内容 | 内容 | 内容 |
+| 内容 | 内容 | 内容 |
+
+`;
+
+      editor.value = text.substring(0, start) + table + text.substring(start);
+      editor.focus();
+      handleInput();
+    }
+    
+    function insertCodeBlock() {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      const selected = text.substring(start, end);
+      
+      const codeBlock = `\n\`\`\`\n${selected || 'code here'}\n\`\`\`\n`;
+      editor.value = text.substring(0, start) + codeBlock + text.substring(end);
+      editor.focus();
+      handleInput();
+    }
+    
+    function insertMath() {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      const selected = text.substring(start, end);
+      
+      if (selected) {
+        editor.value = text.substring(0, start) + '$' + selected + '$' + text.substring(end);
+        editor.setSelectionRange(start + 1, end + 1);
+      } else {
+        editor.value = text.substring(0, start) + '$$' + text.substring(end);
+        editor.setSelectionRange(start + 1, start + 1);
+      }
+      editor.focus();
+      handleInput();
+    }
+    
+    function handleInput() {
+      render();
+      updateLineNumbers();
+      updateWordCount();
+      clearTimeout(state.saveTimeout);
+      state.saveTimeout = setTimeout(() => {
+        saveToStorage();
+        pushHistory();
+      }, 500);
+    }
+    
+    function toggleHeadingDropdown() {
+      headingDropdown.classList.toggle('show');
+    }
+    
+    function hideHeadingDropdown() {
+      headingDropdown.classList.remove('show');
+    }
+    
+    // Autocomplete
+    function showAutocomplete(cursorPos) {
+      const text = editor.value;
+      const beforeCursor = text.substring(0, cursorPos);
+      
+      const triggerMatch = beforeCursor.match(/[*_`#>\-\d\.\[\]|!$]+$/);
+      if (!triggerMatch) {
+        hideAutocomplete();
+        return;
+      }
+      
+      const trigger = triggerMatch[0];
+      const matches = snippets.filter(s => s.trigger.startsWith(trigger) && s.trigger !== trigger);
+      
+      if (matches.length === 0) {
+        hideAutocomplete();
+        return;
+      }
+      
+      let html = '';
+      matches.forEach((m, i) => {
+        html += `<div class="autocomplete-item" data-index="${i}" data-trigger="${m.trigger}" data-insert="${m.label.replace(/\n/g, '↵')}">
+          <span class="text-gray-500">${m.trigger}</span> ${m.description}
+        </div>`;
+      });
+      
+      autocompleteDropdown.innerHTML = html;
+      autocompleteDropdown.classList.add('show');
+      state.autocompleteVisible = true;
+      
+      const rect = editor.getBoundingClientRect();
+      const lineHeight = 25.5;
+      const lines = beforeCursor.split('\n');
+      const top = 24 + (lines.length * lineHeight) - editor.scrollTop + 40;
+      const left = 60 + (lines[lines.length - 1].length * 8);
+      
+      autocompleteDropdown.style.top = Math.min(top, window.innerHeight - 220) + 'px';
+      autocompleteDropdown.style.left = Math.min(left, rect.width - 200) + 'px';
+      
+      autocompleteDropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const insert = item.dataset.insert.replace(/↵/g, '\n');
+          const trigger = item.dataset.trigger;
+          
+          const newText = text.substring(0, cursorPos - trigger.length) + insert + text.substring(cursorPos);
+          editor.value = newText;
+          editor.setSelectionRange(cursorPos - trigger.length + insert.length, cursorPos - trigger.length + insert.length);
+          editor.focus();
+          handleInput();
+          hideAutocomplete();
+        });
+      });
+    }
+    
+    function hideAutocomplete() {
+      autocompleteDropdown.classList.remove('show');
+      state.autocompleteVisible = false;
+    }
+    
+    // Sync scroll handling
+    let isEditorScrolling = false;
+    let isPreviewScrolling = false;
+    
+    function handleEditorScroll() {
+      if (!state.syncScroll || isPreviewScrolling) return;
+      
+      isEditorScrolling = true;
+      const scrollRatio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+      preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
+      
+      setTimeout(() => { isEditorScrolling = false; }, 50);
+      updateLineNumbers();
+    }
+    
+    function handlePreviewScroll() {
+      if (!state.syncScroll || isEditorScrolling) return;
+      
+      isPreviewScrolling = true;
+      const scrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
+      editor.scrollTop = scrollRatio * (editor.scrollHeight - editor.clientHeight);
+      updateLineNumbers();
+      
+      updateActiveTOCHeading();
+      
+      setTimeout(() => { isPreviewScrolling = false; }, 50);
+    }
+    
+    editor.addEventListener('scroll', handleEditorScroll);
+    preview.addEventListener('scroll', handlePreviewScroll);
+    
+    function handleKeyboard(e) {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      
+      // 阻止浏览器默认的 Ctrl+1/2/3/4 切换标签页行为
+      if (isCtrl && ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(key)) {
+        e.preventDefault();
+      }
+      
+      if (e.key === 'Escape' && state.autocompleteVisible) {
+        hideAutocomplete();
+        return;
+      }
+      
+      if (isCtrl) {
+        // Ctrl+1/2/3/4 标题快捷键
+        if (key === '1') {
+          insertAtLineStart('# ');
+          e.preventDefault();
+          return;
+        }
+        if (key === '2') {
+          insertAtLineStart('## ');
+          e.preventDefault();
+          return;
+        }
+        if (key === '3') {
+          insertAtLineStart('### ');
+          e.preventDefault();
+          return;
+        }
+        if (key === '4') {
+          insertAtLineStart('#### ');
+          e.preventDefault();
+          return;
+        }
+        if (key === 's') {
+          saveToStorage();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'n') {
+          createTab();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'z') {
+          if (e.shiftKey) redo(); else undo();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'y') {
+          redo();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'b') {
+          wrapSelection('**', '**', '粗体文本');
+          e.preventDefault();
+          return;
+        }
+        if (key === 'i' && !e.shiftKey) {
+          wrapSelection('*', '*', '斜体文本');
+          e.preventDefault();
+          return;
+        }
+        if (key === 'k' && !e.shiftKey) {
+          wrapSelection('[', '](url)', '链接文本');
+          e.preventDefault();
+          return;
+        }
+        if (key === '`') {
+          wrapSelection('`', '`', '代码');
+          e.preventDefault();
+          return;
+        }
+        if (key === '/') {
+          showHelp();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'd') {
+          toggleTheme();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'f' && !e.shiftKey) {
+          toggleFullscreen();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'a') {
+          editor.select();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'p' && !e.shiftKey) {
+          toggleMobilePreview();
+          e.preventDefault();
+          return;
+        }
+        if (key === 'm' && !e.shiftKey) {
+          insertMath();
+          e.preventDefault();
+          return;
+        }
+        if (e.shiftKey) {
+          if (key === 's') {
+            wrapSelection('~~', '~~', '删除线');
+            e.preventDefault();
+            return;
+          }
+          if (key === 'q') {
+            insertAtLineStart('> ');
+            e.preventDefault();
+            return;
+          }
+          if (key === 'k') {
+            insertCodeBlock();
+            e.preventDefault();
+            return;
+          }
+          if (key === 'i') {
+            wrapSelection('![', '](image-url)', '替代文本');
+            e.preventDefault();
+            return;
+          }
+          if (key === 't') {
+            insertTable();
+            e.preventDefault();
+            return;
+          }
+        } else {
+          // 无 Shift 修饰键
+          if (key === 'u') {
+            wrapSelection('<u>', '</u>', '下划线文本');
+            e.preventDefault();
+            return;
+          }
+        }
+        
+        // Shift 组合键（不受浏览器限制）
+        if (e.shiftKey) {
+          if (key === 'h') {
+            wrapSelection('==', '==', '高亮文本');
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
+      // Tab 键缩进处理
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const text = editor.value;
+        const selected = text.substring(start, end);
+
+        if (selected.includes('\n')) {
+          // 多行选中时缩进/取消缩进
+          const lines = selected.split('\n');
+          const processed = e.shiftKey
+            ? lines.map(l => l.startsWith('  ') ? l.substring(2) : (l.startsWith('\t') ? l.substring(1) : l))
+            : lines.map(l => '  ' + l);
+
+          const indented = processed.join('\n');
+          editor.value = text.substring(0, start) + indented + text.substring(end);
+          editor.setSelectionRange(start, start + indented.length);
+        } else {
+          // 单行或无选中
+          if (e.shiftKey) {
+            // Shift+Tab: 取消缩进
+            const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+            const lineContent = text.substring(lineStart, start);
+            if (lineContent.startsWith('  ')) {
+              editor.value = text.substring(0, lineStart) + text.substring(lineStart + 2) + text.substring(end);
+              editor.setSelectionRange(start - 2, start - 2);
+            } else if (lineContent.startsWith('\t')) {
+              editor.value = text.substring(0, lineStart) + text.substring(lineStart + 1) + text.substring(end);
+              editor.setSelectionRange(start - 1, start - 1);
+            }
+          } else {
+            // Tab: 添加缩进
+            editor.value = text.substring(0, start) + '  ' + text.substring(end);
+            editor.setSelectionRange(start + 2, start + 2);
+          }
+        }
+        handleInput();
+        return;
+      }
+    }
+    
+    editor.addEventListener('input', handleInput);
+    editor.addEventListener('keydown', handleKeyboard);
+    editor.addEventListener('keyup', (e) => {
+      updateCursorPosition();
+      if (['*', '`', '#', '-', '>', '1', '2', '[', '!', '$'].includes(e.key)) {
+        showAutocomplete(editor.selectionStart);
+      }
+    });
+    editor.addEventListener('click', updateCursorPosition);
+    
+    undoBtn.addEventListener('click', undo);
+    redoBtn.addEventListener('click', redo);
+    
+    themeToggle.addEventListener('click', toggleTheme);
+    
+    document.getElementById('statusSync').addEventListener('click', toggleSyncScroll);
+    
+    headingBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleHeadingDropdown();
+      document.getElementById('exportDropdown').classList.remove('show');
+      document.getElementById('settingsDropdown').classList.remove('show');
+    });
+    
+    headingDropdown.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        insertHeading(parseInt(item.dataset.level));
+      });
+    });
+    
+    document.addEventListener('click', () => {
+      hideHeadingDropdown();
+      hideAutocomplete();
+      document.getElementById('exportDropdown').classList.remove('show');
+      document.getElementById('settingsDropdown').classList.remove('show');
+    });
+    
+    document.getElementById('boldBtn').addEventListener('click', () => wrapSelection('**', '**', '粗体文本'));
+    document.getElementById('italicBtn').addEventListener('click', () => wrapSelection('*', '*', '斜体文本'));
+    document.getElementById('strikethroughBtn').addEventListener('click', () => wrapSelection('~~', '~~', '删除线'));
+    document.getElementById('underlineBtn').addEventListener('click', () => wrapSelection('<u>', '</u>', '下划线文本'));
+    document.getElementById('highlightBtn').addEventListener('click', () => wrapSelection('==', '==', '高亮文本'));
+    document.getElementById('quoteBtn').addEventListener('click', () => insertAtLineStart('> '));
+    document.getElementById('orderedListBtn').addEventListener('click', () => insertAtLineStart('1. '));
+    document.getElementById('unorderedListBtn').addEventListener('click', () => insertAtLineStart('- '));
+    document.getElementById('taskListBtn').addEventListener('click', () => insertAtLineStart('- [ ] '));
+    document.getElementById('codeBtn').addEventListener('click', () => wrapSelection('`', '`', '代码'));
+    document.getElementById('codeBlockBtn').addEventListener('click', insertCodeBlock);
+    document.getElementById('tableBtn').addEventListener('click', insertTable);
+    document.getElementById('linkBtn').addEventListener('click', () => wrapSelection('[', '](url)', '链接文本'));
+    document.getElementById('imageBtn').addEventListener('click', () => wrapSelection('![', '](image-url)', '替代文本'));
+    document.getElementById('mathBtn').addEventListener('click', insertMath);
+    document.getElementById('hrBtn').addEventListener('click', () => {
+      const start = editor.selectionStart;
+      const text = editor.value;
+      editor.value = text.substring(0, start) + '\n---\n' + text.substring(editor.selectionEnd);
+      editor.setSelectionRange(start + 5, start + 5);
+      editor.focus();
+      handleInput();
+    });
+    document.getElementById('tocBtn').addEventListener('click', () => {
+      const content = editor.value;
+      if (!content.includes('[TOC]')) {
+        wrapSelection('', '\n\n[TOC]\n\n', '');
+      }
+    });
+    
+    // Export dropdown
+    const exportBtn = document.getElementById('exportBtn');
+    const exportDropdown = document.getElementById('exportDropdown');
+    exportBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportDropdown.classList.toggle('show');
+      document.getElementById('settingsDropdown').classList.remove('show');
+    });
+    
+    exportDropdown.querySelectorAll('[data-format]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        exportFile(btn.dataset.format);
+        exportDropdown.classList.remove('show');
+        document.getElementById('settingsDropdown').classList.remove('show');
+      });
+    });
+    
+    // New tab button
+    document.getElementById('newTabBtn').addEventListener('click', () => createTab());
+    
+    // Settings dropdown
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsDropdown = document.getElementById('settingsDropdown');
+    const tocToggleMenu = document.getElementById('tocToggleMenu');
+    const syncScrollToggle = document.getElementById('syncScrollToggle');
+    const tocToggleStatus = document.getElementById('tocToggleStatus');
+    const syncScrollStatus = document.getElementById('syncScrollStatus');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const previewOnlyBtn = document.getElementById('previewOnlyBtn');
+    
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settingsDropdown.classList.toggle('show');
+      document.getElementById('exportDropdown').classList.remove('show');
+    });
+    
+    // 更新设置状态显示
+    function updateSettingsStatus() {
+      tocToggleStatus.textContent = state.showToc ? '开' : '关';
+      tocToggleStatus.className = state.showToc ? 'text-xs text-green-500' : 'text-xs text-gray-400';
+      syncScrollStatus.textContent = state.syncScroll ? '开' : '关';
+      syncScrollStatus.className = state.syncScroll ? 'text-xs text-green-500' : 'text-xs text-gray-400';
+    }
+    
+    tocToggleMenu.addEventListener('click', () => {
+      toggleToc();
+      updateSettingsStatus();
+    });
+    
+    syncScrollToggle.addEventListener('click', () => {
+      toggleSyncScroll();
+      updateSettingsStatus();
+    });
+    
+    // 全屏切换
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.log('全屏模式不可用');
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+    
+    fullscreenBtn.addEventListener('click', () => {
+      toggleFullscreen();
+      settingsDropdown.classList.remove('show');
+    });
+    
+    // 仅预览模式
+    let previewOnlyMode = false;
+    
+    previewOnlyBtn.addEventListener('click', () => {
+      previewOnlyMode = !previewOnlyMode;
+      const editorPanel = document.querySelector('.editor-wrapper').parentElement;
+      const tabBar = document.getElementById('tabBar');
+      
+      if (previewOnlyMode) {
+        editorPanel.classList.add('hidden');
+        tabBar.classList.add('hidden');
+        document.querySelector('main').classList.remove('pt-[88px]', 'pt-12');
+        document.querySelector('main').classList.add('pt-12');
+        previewOnlyBtn.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>返回编辑`;
+      } else {
+        editorPanel.classList.remove('hidden');
+        tabBar.classList.remove('hidden');
+        document.querySelector('main').classList.add('pt-[88px]');
+        document.querySelector('main').classList.remove('pt-12');
+        previewOnlyBtn.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>仅预览模式`;
+      }
+      settingsDropdown.classList.remove('show');
+    });
+    
+    // Mobile menu toggle
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenuDropdown = document.getElementById('mobileMenuDropdown');
+    if (mobileMenuBtn) {
+      mobileMenuBtn.addEventListener('click', () => {
+        mobileMenuDropdown.classList.toggle('hidden');
+      });
+    }
+    
+    mobileMenuDropdown.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        switch(action) {
+          case 'bold': wrapSelection('**', '**', '粗体文本'); break;
+          case 'italic': wrapSelection('*', '*', '斜体文本'); break;
+          case 'link': wrapSelection('[', '](url)', '链接文本'); break;
+          case 'code': wrapSelection('`', '`', '代码'); break;
+          case 'heading': insertAtLineStart('## '); break;
+          case 'quote': insertAtLineStart('> '); break;
+          case 'list': insertAtLineStart('- '); break;
+          case 'math': insertMath(); break;
+        }
+        mobileMenuDropdown.classList.add('hidden');
+      });
+    });
+    
+    const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+    if (mobileThemeToggle) {
+      mobileThemeToggle.addEventListener('click', toggleTheme);
+    }
+    
+    let mobileViewMode = 'editor';
+    
+    function toggleMobilePreview() {
+      const mobilePreview = document.getElementById('mobilePreview');
+      const editorWrapper = document.querySelector('.editor-wrapper').parentElement;
+      
+      if (mobileViewMode === 'editor') {
+        mobilePreview.classList.remove('hidden');
+        mobilePreview.classList.add('flex');
+        editorWrapper.classList.add('hidden');
+        mobileViewMode = 'preview';
+      } else {
+        mobilePreview.classList.add('hidden');
+        mobilePreview.classList.remove('flex');
+        editorWrapper.classList.remove('hidden');
+        mobileViewMode = 'editor';
+      }
+    }
+    
+    const backToEditorBtn = document.getElementById('backToEditor');
+    if (backToEditorBtn) {
+      backToEditorBtn.addEventListener('click', () => {
+        if (mobileViewMode === 'preview') {
+          toggleMobilePreview();
+        }
+      });
+    }
+    
+    loadFromStorage();
+    
+    // Help Modal
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const closeHelpBtn = document.getElementById('closeHelpBtn');
+    
+    function showHelp() {
+      helpModal.classList.add('show');
+    }
+    
+    function hideHelp() {
+      helpModal.classList.remove('show');
+    }
+    
+    helpBtn.addEventListener('click', showHelp);
+    closeHelpBtn.addEventListener('click', hideHelp);
+    helpModal.addEventListener('click', (e) => {
+      if (e.target === helpModal) hideHelp();
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideHelp();
+    });
+    
+    // Export functions
+    function exportFile(format) {
+      const content = editor.value;
+      let blob, filename, mimeType;
+      
+      if (format === 'md') {
+        blob = new Blob([content], { type: 'text/markdown' });
+        filename = 'document.md';
+      } else if (format === 'html') {
+        const isDark = document.documentElement.classList.contains('dark');
+        const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exported Document</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/${isDark ? 'github-dark' : 'github'}.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <style>
+    body { font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: ${isDark ? '#d4d4d4' : '#333'}; background: ${isDark ? '#1e1e1e' : '#fff'}; }
+    h1 { font-size: 1.875em; font-weight: 700; margin: 1.5em 0 0.5em; border-bottom: 1px solid ${isDark ? '#404040' : '#eee'}; padding-bottom: 0.3em; }
+    h2 { font-size: 1.5em; font-weight: 600; margin: 1.5em 0 0.5em; border-bottom: 1px solid ${isDark ? '#404040' : '#eee'}; padding-bottom: 0.3em; }
+    h3 { font-size: 1.25em; font-weight: 600; margin: 1.25em 0 0.5em; }
+    p { margin: 0.75em 0; }
+    code { background: ${isDark ? '#2d2d2d' : '#f4f4f4'}; padding: 0.2em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.875em; }
+    pre { background: #1e1e1e; padding: 1em; border-radius: 8px; overflow-x: auto; margin: 1em 0; }
+    pre code { background: transparent; padding: 0; color: #d4d4d4; }
+    blockquote { border-left: 4px solid ${isDark ? '#4fc3f7' : '#2196f3'}; padding-left: 1em; margin: 1em 0; opacity: 0.85; font-style: italic; }
+    ul, ol { padding-left: 1.5em; margin: 0.75em 0; }
+    a { color: ${isDark ? '#4fc3f7' : '#2196f3'}; text-decoration: none; }
+    img { max-width: 100%; border-radius: 8px; margin: 1em 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    th, td { border: 1px solid ${isDark ? '#404040' : '#ddd'}; padding: 0.5em 1em; text-align: left; }
+    th { background: ${isDark ? 'rgba(255,255,255,0.1)' : '#f5f5f5'}; font-weight: 600; }
+    hr { border: none; border-top: 2px solid ${isDark ? '#404040' : '#eee'}; margin: 2em 0; }
+    .math-display { margin: 1.5em 0; text-align: center; }
+  </style>
+</head>
+<body>
+${marked.parse(content)}
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script>
+</body>
+</html>`;
+        blob = new Blob([htmlContent], { type: 'text/html' });
+        filename = 'document.html';
+      }
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    
+    window.exportFile = exportFile;
+  </script>
+</body>
+</html>
