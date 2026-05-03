@@ -484,6 +484,13 @@
           </span>
           <span id="syncScrollStatus" class="text-xs text-green-500">开</span>
         </button>
+        <button id="livePreviewToggle" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            实时预览
+          </span>
+          <span id="livePreviewStatus" class="text-xs text-green-500">开</span>
+        </button>
         <div class="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
           <button id="fullscreenBtn" class="dropdown-item w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-2">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -598,7 +605,7 @@
   
   <main class="flex h-full pt-[88px]">
     <!-- Editor Panel -->
-    <div class="w-full lg:w-1/2 h-full flex flex-col border-r border-gray-200 dark:border-gray-700 relative">
+    <div id="editorPanel" class="w-full lg:w-1/2 h-full flex flex-col border-r border-gray-200 dark:border-gray-700 relative">
       <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-[#252526]/80 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center justify-between">
         <div class="flex items-center gap-2">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -618,22 +625,21 @@
       </div>
     </div>
     
-    <!-- Preview/TOC Panel -->
-    <div class="hidden lg:flex w-1/2 h-full">
-      <!-- TOC Panel -->
-      <div id="tocPanel" class="hidden w-64 h-full flex flex-col border-r border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#252526]/50">
-        <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            <span>目录</span>
-          </div>
-        </div>
-        <div id="tocContent" class="flex-1 overflow-y-auto p-4 space-y-1 text-sm">
-          <p class="text-gray-400 text-xs">暂无内容</p>
+    <!-- TOC Panel (outside preview panel) -->
+    <div id="tocPanel" class="hidden lg:flex w-64 h-full flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#252526]/50">
+      <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          <span>目录</span>
         </div>
       </div>
-      
-      <!-- Preview Panel -->
+      <div id="tocContent" class="flex-1 overflow-y-auto p-4 space-y-1 text-sm">
+        <p class="text-gray-400 text-xs">暂无内容</p>
+      </div>
+    </div>
+    
+    <!-- Preview Panel -->
+    <div id="previewPanel" class="lg:flex flex-1 h-full">
       <div class="flex-1 h-full flex flex-col">
         <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-[#252526]/80 border-b border-gray-200 dark:border-gray-700 font-medium flex items-center gap-2">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -843,6 +849,7 @@
       renderTimeout: null,
       syncScroll: true,
       showToc: false,
+      livePreview: true,
       autocompleteVisible: false,
       activeHeadingId: null,
     };
@@ -1031,6 +1038,7 @@
       renderTabs();
       updateHistoryButtons();
       render();
+      generateTOC();
       updateLineNumbers();
       updateWordCount();
       updateCursorPosition();
@@ -1096,6 +1104,16 @@
       renameBtn.style.display = 'none';
       input.focus();
       input.select();
+      
+      // 阻止输入框内部的点击导致事件冒泡
+      input.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+      });
+      
+      input.addEventListener('click', (e) => {
+        e.stopPropagation();
+        input.select();
+      });
       
       const finishRename = () => {
         const newTitle = input.value.trim() || originalTitle;
@@ -1243,7 +1261,18 @@
     }
     
     function generateTOC() {
-      const headings = preview.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      // 从编辑器内容直接解析标题，而不是依赖预览区域
+      const content = editor.value;
+      const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+      const headings = [];
+      let match;
+      
+      while ((match = headingRegex.exec(content)) !== null) {
+        const level = match[1].length;
+        const text = match[2].trim();
+        const id = text.toLowerCase().replace(/[^\w]+/g, '-');
+        headings.push({ level, text, id });
+      }
       
       if (headings.length === 0) {
         tocContent.innerHTML = '<p class="text-gray-400 text-xs">暂无内容</p>';
@@ -1252,15 +1281,13 @@
       
       let html = '<nav class="space-y-1">';
       headings.forEach(h => {
-        const level = parseInt(h.tagName[1]);
-        const indent = (level - 1) * 12;
-        const id = h.id || h.textContent.toLowerCase().replace(/[^\w]+/g, '-');
-        h.id = id;
-        html += `<a href="#${id}" class="toc-link block py-1 text-xs" style="padding-left: ${indent}px" data-id="${id}">${h.textContent}</a>`;
+        const indent = (h.level - 1) * 12;
+        html += `<a href="#${h.id}" class="toc-link block py-1 text-xs" style="padding-left: ${indent}px" data-id="${h.id}" data-text="${escapeHtml(h.text)}">${escapeHtml(h.text)}</a>`;
       });
       html += '</nav>';
       tocContent.innerHTML = html;
       
+      // 目录链接点击事件
       tocContent.querySelectorAll('.toc-link').forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
@@ -1296,7 +1323,11 @@
     
     function toggleToc() {
       state.showToc = !state.showToc;
-      tocPanel.classList.toggle('hidden', !state.showToc);
+      if (state.showToc) {
+        tocPanel.style.display = '';
+      } else {
+        tocPanel.style.display = 'none';
+      }
       localStorage.setItem('minimd-showtoc', state.showToc ? 'true' : 'false');
     }
     
@@ -1319,6 +1350,7 @@
       
       localStorage.setItem('minimd-theme', state.isDark ? 'dark' : 'light');
       localStorage.setItem('minimd-syncscroll', state.syncScroll ? 'true' : 'false');
+      localStorage.setItem('minimd-livepreview', state.livePreview ? 'true' : 'false');
       saveTabsToStorage();
       showSaveIndicator();
     }
@@ -1329,6 +1361,7 @@
       const theme = localStorage.getItem('minimd-theme');
       const syncScroll = localStorage.getItem('minimd-syncscroll');
       const showToc = localStorage.getItem('minimd-showtoc');
+      const livePreview = localStorage.getItem('minimd-livepreview');
       
       if (theme === 'dark') {
         state.isDark = true;
@@ -1339,7 +1372,14 @@
       updateSyncStatus();
       
       state.showToc = showToc === 'true';
-      tocPanel.classList.toggle('hidden', !state.showToc);
+      if (state.showToc) {
+        tocPanel.style.display = '';
+      } else {
+        tocPanel.style.display = 'none';
+      }
+      
+      state.livePreview = livePreview !== 'false';
+      updateLivePreviewLayout();
       
       if (state.history.length === 0) {
         pushHistory();
@@ -1350,6 +1390,7 @@
       updateCursorPosition();
       updateSettingsStatus();
       render();
+      generateTOC();
     }
     
     function getDefaultContent() {
@@ -1422,6 +1463,7 @@ def fibonacci(n):
     }
     
     function render() {
+      if (!state.livePreview) return;
       clearTimeout(state.renderTimeout);
       state.renderTimeout = setTimeout(() => {
         const content = editor.value;
@@ -1450,6 +1492,50 @@ def fibonacci(n):
       state.syncScroll = !state.syncScroll;
       updateSyncStatus();
       localStorage.setItem('minimd-syncscroll', state.syncScroll ? 'true' : 'false');
+    }
+    
+    function toggleLivePreview() {
+      state.livePreview = !state.livePreview;
+      localStorage.setItem('minimd-livepreview', state.livePreview ? 'true' : 'false');
+      updateLivePreviewLayout();
+    }
+    
+    function updateLivePreviewLayout() {
+      const previewPanel = document.getElementById('previewPanel');
+      const editorPanel = document.getElementById('editorPanel');
+      const tocPanel = document.getElementById('tocPanel');
+      
+      if (state.livePreview) {
+        // 显示预览
+        if (previewPanel) {
+          previewPanel.style.display = '';
+        }
+        if (editorPanel) {
+          editorPanel.classList.remove('lg:w-full');
+          editorPanel.classList.add('lg:w-1/2');
+        }
+        // 立即渲染
+        const content = editor.value;
+        preview.innerHTML = marked.parse(content);
+        generateTOC();
+        const mobilePreviewContent = document.getElementById('mobilePreviewContent');
+        if (mobilePreviewContent) {
+          mobilePreviewContent.innerHTML = preview.innerHTML;
+        }
+      } else {
+        // 隐藏预览
+        if (previewPanel) {
+          previewPanel.style.display = 'none';
+        }
+        if (editorPanel) {
+          editorPanel.classList.remove('lg:w-1/2');
+          editorPanel.classList.add('lg:w-full');
+        }
+        // 目录面板也要隐藏
+        if (tocPanel && !state.showToc) {
+          tocPanel.style.display = 'none';
+        }
+      }
     }
     
     function wrapSelection(before, after = before, placeholder = '') {
@@ -1542,6 +1628,7 @@ def fibonacci(n):
     
     function handleInput() {
       render();
+      generateTOC();
       updateLineNumbers();
       updateWordCount();
       clearTimeout(state.saveTimeout);
@@ -1936,6 +2023,8 @@ def fibonacci(n):
     const syncScrollToggle = document.getElementById('syncScrollToggle');
     const tocToggleStatus = document.getElementById('tocToggleStatus');
     const syncScrollStatus = document.getElementById('syncScrollStatus');
+    const livePreviewToggle = document.getElementById('livePreviewToggle');
+    const livePreviewStatus = document.getElementById('livePreviewStatus');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const previewOnlyBtn = document.getElementById('previewOnlyBtn');
     
@@ -1951,6 +2040,8 @@ def fibonacci(n):
       tocToggleStatus.className = state.showToc ? 'text-xs text-green-500' : 'text-xs text-gray-400';
       syncScrollStatus.textContent = state.syncScroll ? '开' : '关';
       syncScrollStatus.className = state.syncScroll ? 'text-xs text-green-500' : 'text-xs text-gray-400';
+      livePreviewStatus.textContent = state.livePreview ? '开' : '关';
+      livePreviewStatus.className = state.livePreview ? 'text-xs text-green-500' : 'text-xs text-gray-400';
     }
     
     tocToggleMenu.addEventListener('click', () => {
@@ -1960,6 +2051,11 @@ def fibonacci(n):
     
     syncScrollToggle.addEventListener('click', () => {
       toggleSyncScroll();
+      updateSettingsStatus();
+    });
+    
+    livePreviewToggle.addEventListener('click', () => {
+      toggleLivePreview();
       updateSettingsStatus();
     });
     
